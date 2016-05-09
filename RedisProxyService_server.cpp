@@ -76,7 +76,7 @@ public:
 
 	void getChargeUsers(std::vector<User> & _return, const Word& word) {
 		printf("getChargeUsers\n");
-		_return = this->redisProxy->getChargeUsers(word.name);
+		_return = this->redisProxy->produceSearchResult(word.name);
 	}
 
 	void getAllToken(std::vector<Token> & _return) {

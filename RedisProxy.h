@@ -44,11 +44,17 @@ public:
 	void userBuyWord(long userId, long wordId);
 
 	//get the user list who will be charged for that someone search the word in parameter "ws"
-	std::vector<User> getChargeUsers(std::string ws);
+	std::vector<User> produceSearchResult(std::string ws);
 private:
 	boost::shared_ptr<Redis> redis;
 	std::vector<std::string> cutString(std::string ws);
-	std::vector<TokenItem> generateTokenItemVector(const std::string& ws);
+	std::vector<TokenItem> generateTokenItemVectorThroughSearchString(const std::string& ws);
+	std::map<std::pair<long, long>, std::priority_queue<std::pair<int, int> > > generateMapThroughTokenItemVector(
+			const std::vector<TokenItem>& tokenItemVector);
+	std::vector<User> getChargeUsersThroughMap(
+			std::map<std::pair<long, long>,
+					std::priority_queue<std::pair<int, int> > > map,
+			const std::string& ws);
 };
 
 #endif /* REDISPROXY_H_ */

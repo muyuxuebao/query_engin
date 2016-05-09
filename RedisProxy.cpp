@@ -374,7 +374,7 @@ void RedisProxy::userBuyWord(long userId, long wordId) {
 	}
 }
 
-std::vector<TokenItem> RedisProxy::generateTokenItemVector(
+std::vector<TokenItem> RedisProxy::generateTokenItemVectorThroughSearchString(
 		const std::string& ws) {
 
 	std::vector<TokenItem> tokenItemVector;
@@ -446,31 +446,33 @@ std::vector<TokenItem> RedisProxy::generateTokenItemVector(
 	return tokenItemVector;
 }
 
-std::vector<User> RedisProxy::getChargeUsers(std::string ws) {
-	std::vector<TokenItem> tokenItemVector = generateTokenItemVector(ws);
-
+std::map<std::pair<long, long>, std::priority_queue<std::pair<int, int> > > RedisProxy::generateMapThroughTokenItemVector(
+		const std::vector<TokenItem>& tokenItemVector) {
 	std::map<std::pair<long, long>, std::priority_queue<std::pair<int, int> > > map;
 	for (unsigned int i = 0; i < tokenItemVector.size(); i++) {
 		std::pair<long, long> p_key(tokenItemVector[i].userId,
 				tokenItemVector[i].wordId);
-
 		std::priority_queue<std::pair<int, int> > p_queue = map[p_key];
 		p_queue.push(
 				std::pair<int, int>(tokenItemVector[i].postion,
 						tokenItemVector[i].length));
 		map[p_key] = p_queue;
 	}
+	return map;
+}
 
+std::vector<User> RedisProxy::getChargeUsersThroughMap(
+		std::map<std::pair<long, long>,
+				std::priority_queue<std::pair<int, int> > > map,
+		const std::string& ws) {
 	std::vector<User> userVector;
 	for (std::map<std::pair<long, long>,
 			std::priority_queue<std::pair<int, int> > >::iterator it =
 			map.begin(); it != map.end(); it++) {
 		std::priority_queue<std::pair<int, int> > p_queue = it->second;
-
 		if (p_queue.empty() == false) {
-//			unsigned int length = p_queue.top().second;
+			//			unsigned int length = p_queue.top().second;
 			bool beAdd = true;
-
 			unsigned int start = p_queue.top().first;
 			unsigned int end = start;
 			if (ws[end] >= ConstValue::CHINA_START
@@ -479,7 +481,6 @@ std::vector<User> RedisProxy::getChargeUsers(std::string ws) {
 			} else {
 				end += 1;
 			}
-
 			if (ws[end] >= ConstValue::CHINA_START
 					&& ws[end] <= ConstValue::CHINA_END) {
 				end += 3;
@@ -487,40 +488,53 @@ std::vector<User> RedisProxy::getChargeUsers(std::string ws) {
 				end += 1;
 			}
 
+			bool queue_first = true;
 			while (p_queue.empty() == false) {
 				std::pair<int, int> p = p_queue.top();
 				p_queue.pop();
 				start = p.first;
-
 				if (ws[start] >= ConstValue::CHINA_START
 						&& ws[start] <= ConstValue::CHINA_END) {
 					start += 3;
 				} else {
 					start += 1;
 				}
-
+				int end_t = start;
 				if (ws[start] >= ConstValue::CHINA_START
 						&& ws[start] <= ConstValue::CHINA_END) {
 					start += 3;
 				} else {
 					start += 1;
 				}
-
 				if (start != end) {
 					beAdd = false;
 					break;
 				} else {
-					end = p.first;
+					std::vector<std::string> vs = this->cutString(ws);
+					if (queue_first == true && vs.size() % 2 == 1) {
+						end = end_t;
+						queue_first = false;
+					} else {
+						end = p.first;
+					}
 				}
 			}
-
 			if (beAdd == true) {
 				userVector.push_back(*(this->getUserById(it->first.first)));
 			}
 		}
-
 	}
+	return userVector;
+}
 
+std::vector<User> RedisProxy::produceSearchResult(std::string ws) {
+	std::vector<TokenItem> tokenItemVector =
+			generateTokenItemVectorThroughSearchString(ws);
+
+	std::map<std::pair<long, long>, std::priority_queue<std::pair<int, int> > > map =
+			generateMapThroughTokenItemVector(tokenItemVector);
+
+	std::vector<User> userVector = getChargeUsersThroughMap(map, ws);
 	return userVector;
 }
 

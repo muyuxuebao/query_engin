@@ -74,7 +74,7 @@ public:
 	}
 
 	void getChargeUsers(std::vector<User> & _return, const std::string& ws) {
-		_return = this->redisProxy->getChargeUsers(ws);
+		_return = this->redisProxy->produceSearchResult(ws);
 		printf("getChargeUsers\n");
 	}
 private:
