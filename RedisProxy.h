@@ -47,7 +47,8 @@ public:
 	std::vector<User> getChargeUsers(std::string ws);
 private:
 	boost::shared_ptr<Redis> redis;
-
+	std::vector<std::string> cutString(std::string ws);
+	std::vector<TokenItem> generateTokenItemVector(const std::string& ws);
 };
 
 #endif /* REDISPROXY_H_ */

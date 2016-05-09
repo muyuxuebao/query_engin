@@ -374,50 +374,80 @@ void RedisProxy::userBuyWord(long userId, long wordId) {
 	}
 }
 
-std::vector<User> RedisProxy::getChargeUsers(std::string ws) {
-	std::vector<TokenItem> tokenItemVector;
-	for (unsigned int i = 0; i < ws.size();) {
-		std::string tokenName;
-		if (ws[i] >= ConstValue::CHINA_START
-				&& ws[i] <= ConstValue::CHINA_END) {
-			if (i + 3 < ws.size()) {
-				tokenName.append(ws.substr(i, 3));
-				i += 3;
-			} else {
-				break;
-			}
-		} else {
-			tokenName.append(ws.substr(i, 1));
-			i += 1;
-		}
+std::vector<TokenItem> RedisProxy::generateTokenItemVector(
+		const std::string& ws) {
 
-		if (ws[i] >= ConstValue::CHINA_START
-				&& ws[i] <= ConstValue::CHINA_END) {
-			tokenName.append(ws.substr(i, 3));
-			i += 3;
-		} else {
-			tokenName.append(ws.substr(i, 1));
-			i += 1;
-		}
+	std::vector<TokenItem> tokenItemVector;
+	std::vector<std::string> vs = this->cutString(ws);
+
+	for (unsigned int i = 0; i < vs.size() && i + 1 < vs.size(); i += 2) {
+		std::string tokenName = vs[i] + vs[i + 1];
+
+//		std::cout << "tokenName: " << tokenName << std::endl;
 
 		boost::shared_ptr<Token> token = this->getTokenByName(tokenName);
-		if (token != NULL && token->tokenItemVetor.size() > 0) {
+		if (token != NULL) {
 			for (unsigned int i = 0; i < token->tokenItemVetor.size(); i++) {
 				tokenItemVector.push_back(token->tokenItemVetor[i]);
 			}
-
-//			printf("tokenName = %s ", tokenName.c_str());
-//			for (unsigned int i = 0; i < token->tokenItemVetor.size(); i++) {
-//				printf("<%ld, %ld ,%d, %d>", token->tokenItemVetor[i].userId,
-//						token->tokenItemVetor[i].wordId,
-//						token->tokenItemVetor[i].postion,
-//						token->tokenItemVetor[i].length);
-//			}
-//
-//			printf("\n");
-
 		}
 	}
+
+	if (vs.size() % 2 == 1 && vs.size() > 2) {
+		unsigned int i = vs.size() - 2;
+		std::string tokenName = vs[i] + vs[i + 1];
+//		std::cout << "tokenName: " << tokenName << std::endl;
+		boost::shared_ptr<Token> token = this->getTokenByName(tokenName);
+		if (token != NULL) {
+			for (unsigned int i = 0; i < token->tokenItemVetor.size(); i++) {
+				tokenItemVector.push_back(token->tokenItemVetor[i]);
+			}
+		}
+	}
+
+//	for (unsigned int i = 0; i < ws.size();) {
+//		std::string tokenName;
+//		if (ws[i] >= ConstValue::CHINA_START
+//				&& ws[i] <= ConstValue::CHINA_END) {
+//			tokenName.append(ws.substr(i, 3));
+//			i += 3;
+//		} else {
+//			tokenName.append(ws.substr(i, 1));
+//			i += 1;
+//		}
+//
+//		if (ws[i] >= ConstValue::CHINA_START
+//				&& ws[i] <= ConstValue::CHINA_END) {
+//			tokenName.append(ws.substr(i, 3));
+//			i += 3;
+//		} else {
+//			tokenName.append(ws.substr(i, 1));
+//			i += 1;
+//		}
+//
+//		boost::shared_ptr<Token> token = this->getTokenByName(tokenName);
+//		if (token != NULL && token->tokenItemVetor.size() > 0) {
+//			for (unsigned int i = 0; i < token->tokenItemVetor.size(); i++) {
+//				tokenItemVector.push_back(token->tokenItemVetor[i]);
+//			}
+//
+//			//			printf("tokenName = %s ", tokenName.c_str());
+//			//			for (unsigned int i = 0; i < token->tokenItemVetor.size(); i++) {
+//			//				printf("<%ld, %ld ,%d, %d>", token->tokenItemVetor[i].userId,
+//			//						token->tokenItemVetor[i].wordId,
+//			//						token->tokenItemVetor[i].postion,
+//			//						token->tokenItemVetor[i].length);
+//			//			}
+//			//
+//			//			printf("\n");
+//
+//		}
+//	}
+	return tokenItemVector;
+}
+
+std::vector<User> RedisProxy::getChargeUsers(std::string ws) {
+	std::vector<TokenItem> tokenItemVector = generateTokenItemVector(ws);
 
 	std::map<std::pair<long, long>, std::priority_queue<std::pair<int, int> > > map;
 	for (unsigned int i = 0; i < tokenItemVector.size(); i++) {
@@ -431,22 +461,6 @@ std::vector<User> RedisProxy::getChargeUsers(std::string ws) {
 		map[p_key] = p_queue;
 	}
 
-//	for (std::map<std::pair<long, long>,
-//			std::priority_queue<std::pair<int, int> > >::iterator it =
-//			map.begin(); it != map.end(); it++) {
-//		std::pair<long, long> p_key = it->first;
-//		std::priority_queue<std::pair<int, int> > p_queue_value = it->second;
-//		printf("<%ld, %ld>", p_key.first, p_key.second);
-//		while (!p_queue_value.empty()) {
-//			std::pair<int, int> p = p_queue_value.top();
-//			p_queue_value.pop();
-//
-//			printf("<%d ,%d>", p.first, p.second);
-//		}
-//		printf("\n");
-//
-//	}
-
 	std::vector<User> userVector;
 	for (std::map<std::pair<long, long>,
 			std::priority_queue<std::pair<int, int> > >::iterator it =
@@ -454,15 +468,29 @@ std::vector<User> RedisProxy::getChargeUsers(std::string ws) {
 		std::priority_queue<std::pair<int, int> > p_queue = it->second;
 
 		if (p_queue.empty() == false) {
-			unsigned int length = p_queue.top().second;
+//			unsigned int length = p_queue.top().second;
 			bool beAdd = true;
 
-			unsigned int end = length;
+			unsigned int start = p_queue.top().first;
+			unsigned int end = start;
+			if (ws[end] >= ConstValue::CHINA_START
+					&& ws[end] <= ConstValue::CHINA_END) {
+				end += 3;
+			} else {
+				end += 1;
+			}
+
+			if (ws[end] >= ConstValue::CHINA_START
+					&& ws[end] <= ConstValue::CHINA_END) {
+				end += 3;
+			} else {
+				end += 1;
+			}
 
 			while (p_queue.empty() == false) {
 				std::pair<int, int> p = p_queue.top();
 				p_queue.pop();
-				unsigned int start = p.first;
+				start = p.first;
 
 				if (ws[start] >= ConstValue::CHINA_START
 						&& ws[start] <= ConstValue::CHINA_END) {
@@ -494,6 +522,21 @@ std::vector<User> RedisProxy::getChargeUsers(std::string ws) {
 	}
 
 	return userVector;
+}
+
+std::vector<std::string> RedisProxy::cutString(std::string ws) {
+	std::vector<std::string> v;
+	for (unsigned int i = 0; i < ws.size();) {
+		if (ws[i] >= ConstValue::CHINA_START
+				&& ws[i] <= ConstValue::CHINA_END) {
+			v.push_back(ws.substr(i, 3));
+			i += 3;
+		} else {
+			v.push_back(ws.substr(i, 1));
+			i += 1;
+		}
+	}
+	return v;
 }
 
 void RedisProxy::cleanAllKey() {

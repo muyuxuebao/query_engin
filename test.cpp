@@ -172,4 +172,3 @@ TEST_F(Gtest, test_UserBuyWordAndGetChargeUsers) {
 		cout << "ERROR: " << tx.what() << endl;
 	}
 }
-
